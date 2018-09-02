@@ -1,0 +1,134 @@
+---
+Title: Rproducible Research Project 2:Fatalities, Inuries and Propperty Damage Due
+  to Weather in the United States
+output:
+  html_document: default
+  pdf_document: default
+---
+Synposis:
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+Key Findings:
+
+A. Tornados cause most fatalities.
+B. Tornados cause most injuries.
+C. Flooding causes most property damage.
+
+DATA Processing
+
+Step 1: Download dataset to working directory of R
+```{r data}
+dataFileName <- "./stormdata.csv.bz2"
+
+if (!file.exists(dataFileName))
+{
+  url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+  download.file(url = url, destfile = dataFileName)
+}
+stormdata <- read.csv("stormdata.csv.bz2")
+```
+Step 2: Separate data on fatalities. 
+
+```{r, }
+fatality <- (subset(stormdata, FATALITIES > 0))[c(8, 23)]
+fatalityData <- aggregate(FATALITIES ~ EVTYPE, data = fatality, FUN = "sum", na.rm = TRUE)
+fatalityData <- fatalityData[order(fatalityData$FATALITIES, decreasing=TRUE), ]
+fatalityData <- fatalityData[1:5, ]
+fatalityData$EVTYPE <- factor(fatalityData$EVTYPE, levels=fatalityData$EVTYPE)
+```
+
+
+Step 3: Separate data on injuries
+
+```{r injuries}
+
+injury <- (subset(stormdata, INJURIES > 0))[c(8, 24)]
+injuryData <- aggregate(INJURIES ~ EVTYPE, data = injury, FUN = "sum", na.rm = TRUE)
+injuryData <- injuryData[order(injuryData$INJURIES, decreasing=TRUE), ]
+injuryData <- injuryData[1:5, ]
+injuryData$EVTYPE <- factor(injuryData$EVTYPE, levels=injuryData$EVTYPE)
+```
+
+Step 4:  Base on the damage amount (crop and property) and code obtain total damage
+
+```{r, propertycropdamage}
+
+damageamount <- function(amount, magnitude)
+{
+  returnamount <- 0
+  if (toupper(magnitude)[1]=="K")
+  {
+    returnamount <- (amount * 1000)
+  }
+  if (toupper(magnitude)[1]=="M")
+  {
+    returnamount <- (amount * 1000000)
+  }
+  if (toupper(magnitude)[1]=="B")
+  {
+    returnamount <- (amount * 1000000000)
+  }
+  return(returnamount)
+}
+
+damage <- (subset(stormdata, PROPDMG > 0 | CROPDMG > 0))[c(8, 25, 26, 27, 28)]
+damage$damageamount <- ((mapply(damageamount, damage$PROPDMG, damage$PROPDMGEXP)) +
+                                  (mapply(damageamount, damage$CROPDMG, damage$CROPDMGEXP)))
+                          
+damageData <- aggregate(damageamount ~ EVTYPE, data = damage, FUN = "sum", na.rm = TRUE)
+damageData <- damageData[order(damageData$damageamount, decreasing=TRUE), ]
+damageData <- damageData[1:5, ]
+damageData$EVTYPE <- factor(damageData$EVTYPE, levels=damageData$EVTYPE)
+
+```
+
+RESULTS:
+
+The top 5 events for fataility are
+
+```{r fatality}
+fatalityData
+```
+
+
+```{r fatalityplot}
+library(ggplot2)
+ggplot(fatalityData, aes(x=EVTYPE, y=FATALITIES)) + geom_bar(stat="identity") +
+  xlab("Events") +   ylab("Fatalities") +
+  ggtitle("Total Fatalities From Various Weather Events")
+  
+```
+
+The top 5 events for Injuries are
+
+```{r injury}
+injuryData
+```
+
+```{r injuryplot}
+
+library(ggplot2)
+ggplot(injuryData, aes(x=EVTYPE, y=INJURIES)) +
+  geom_bar(stat="identity") +
+  xlab("Types") + 
+  ylab("Injuries") +
+  ggtitle("Total Injuries From Various Weather Events")
+```
+
+
+The top 5 events for damage (crop and property) are
+
+```{r damagdata}
+damageData
+```
+
+```{r damageplot}
+
+library(ggplot2)
+ggplot(damageData, aes(x=EVTYPE, y=damageamount/1000000)) +
+  geom_bar(stat="identity") +
+  xlab("Types") + 
+  ylab("Damage Amount (In Million Dollars)") +
+  ggtitle("Total Damage Amount From Various Weather Events")
+```
